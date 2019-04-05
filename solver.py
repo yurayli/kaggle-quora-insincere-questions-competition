@@ -152,14 +152,17 @@ class NetSolver(object):
             self.log_and_checkpoint(e, train_loss, val_loss, train_f1, val_f1)
 
 
-    def train_one_cycle(self, loaders, epochs, max_lr, moms=(.95, .85), div_factor=25, sep_ratio=0.3):
+    def train_one_cycle(self, loaders, epochs, max_lr, moms=(.95, .85), div_factor=25,
+                        sep_ratio=0.3, final_div=None):
         train_loader, val_loader = loaders
+        if final_div is None: final_div = div_factor*1e4
 
         # one-cycle setup
         tot_it = epochs * len(train_loader)
         up_it = int(tot_it * sep_ratio)
         down_it = tot_it - up_it
         min_lr = max_lr / div_factor
+        final_lr = max_lr / final_div
         n, curr_lr, curr_mom = 0, min_lr, moms[0]
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = curr_lr
@@ -191,7 +194,7 @@ class NetSolver(object):
                         param_group['lr'] = curr_lr
                         param_group['betas'] = (curr_mom, 0.999)
                 else:
-                    curr_lr = min_lr + (max_lr - min_lr)/2 * (np.cos(np.pi*(n-up_it)/down_it)+1)
+                    curr_lr = final_lr + (max_lr - final_lr)/2 * (np.cos(np.pi*(n-up_it)/down_it)+1)
                     curr_mom = moms[0] + (moms[1] - moms[0])/2 * (np.cos(np.pi*(n-up_it)/down_it)+1)
                     for param_group in self.optimizer.param_groups:
                         param_group['lr'] = curr_lr
